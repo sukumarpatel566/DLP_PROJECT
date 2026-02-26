@@ -15,13 +15,16 @@ def register():
         if not data:
             return jsonify({"success": False, "message": "Invalid input"}), 400
 
-        username = data.get("username")
-        email = data.get("email")
-        password = data.get("password")
+        username = data.get("username", "").strip()
+        email = data.get("email", "").strip()
+        password = data.get("password", "").strip()
         role = data.get("role", "user").lower()
 
         if not username or not email or not password:
             return jsonify({"success": False, "message": "All fields are required"}), 400
+
+        if len(password) < 6:
+            return jsonify({"success": False, "message": "Password must be at least 6 characters"}), 400
 
         if role not in ["admin", "user"]:
             return jsonify({"success": False, "message": "Invalid role. Use 'admin' or 'user'"}), 400
@@ -70,6 +73,9 @@ def login():
         if not identifier or not password:
             return jsonify({"success": False, "message": "Missing identifier or password"}), 400
 
+        identifier = identifier.strip()
+        password = password.strip()
+
         # Find user by email OR username
         user = User.query.filter(
             or_(User.email == identifier, User.username == identifier)
@@ -110,3 +116,9 @@ def login():
 
     except Exception as e:
         return jsonify({"success": False, "message": "Login failed", "error": str(e)}), 500
+
+@auth_bp.route("/logout", methods=["GET", "POST"])
+def logout():
+    # Typically JWT logout is handled on the frontend by clearing the token
+    # This endpoint is here for consistency and optional logging
+    return jsonify({"success": True, "message": "Logged out successfully"}), 200
