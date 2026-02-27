@@ -45,26 +45,71 @@ def get_stats():
 @admin_required
 def get_dashboard_stats():
     try:
+        # Filter parameters
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        risk = request.args.get('risk')
+        blocked = request.args.get('blocked')
+
+        # Base query for stats calculation
+        file_query = File.query
+        anomaly_query = AnomalyLog.query
+        
+        if date_from:
+            from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+            file_query = file_query.filter(File.upload_time >= from_dt)
+            anomaly_query = anomaly_query.filter(AnomalyLog.timestamp >= from_dt)
+        if date_to:
+            to_dt = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)
+            file_query = file_query.filter(File.upload_time < to_dt)
+            anomaly_query = anomaly_query.filter(AnomalyLog.timestamp < to_dt)
+        if risk:
+            file_query = file_query.filter(File.risk_level == risk)
+        if blocked:
+            file_query = file_query.filter(File.is_blocked == (blocked.lower() == 'true'))
+
         total_users = User.query.count()
-        total_files = File.query.count()
-        blocked_files = File.query.filter_by(is_blocked=True).count()
+        total_files = file_query.count()
+        blocked_files = file_query.filter_by(is_blocked=True).count()
         safe_files = total_files - blocked_files
         
-        high_risk_files = File.query.filter(File.risk_level.in_(['High', 'Critical'])).count()
+        high_risk_files = file_query.filter(File.risk_level.in_(['High', 'Critical'])).count()
         
+        # Trends (Last 7 Days - always dynamic or fixed?)
         seven_days_ago = datetime.utcnow() - timedelta(days=7)
-        
         daily_uploads = db.session.query(
             func.date(File.upload_time).label('date'),
             func.count(File.id).label('count')
         ).filter(File.upload_time >= seven_days_ago).group_by('date').all()
         
-        anomalies_count = AnomalyLog.query.filter(AnomalyLog.timestamp >= seven_days_ago).count()
+        # Anomalies
+        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+        active_anomalies = AnomalyLog.query.filter(AnomalyLog.timestamp >= one_hour_ago).count()
+        anomalies_24h = AnomalyLog.query.filter(AnomalyLog.timestamp >= (datetime.utcnow() - timedelta(days=1))).count()
         
+        # Risk distribution
         risk_dist = db.session.query(
             File.risk_level, 
             func.count(File.id)
-        ).group_by(File.risk_level).all()
+        ).filter(File.user_id.in_(db.session.query(User.id))).group_by(File.risk_level).all()
+        # Note: filtered risk_dist doesn't make sense if we filter global stats, 
+        # but let's keep it consistent with the overall query if parameters provided
+        if risk or blocked or date_from or date_to:
+             risk_dist = db.session.query(
+                File.risk_level, 
+                func.count(File.id)
+            ).filter(File.id.in_(db.session.query(file_query.with_entities(File.id)))).group_by(File.risk_level).all()
+
+        # Top 5 Risky Users
+        top_risky_users = db.session.query(
+            User.username,
+            func.count(File.id).label('total_uploads'),
+            func.avg(File.risk_score).label('avg_risk'),
+            User.role
+        ).join(File).group_by(User.id).order_by(func.avg(File.risk_score).desc()).limit(5).all()
+
+        # Recent Security Activity (Last 10 Uploads)
+        recent_uploads = file_query.order_by(File.upload_time.desc()).limit(10).all()
 
         return jsonify({
             "success": True,
@@ -74,9 +119,22 @@ def get_dashboard_stats():
                 "blocked_files": blocked_files,
                 "safe_files": safe_files,
                 "high_risk_files_count": high_risk_files,
+                "active_anomalies": active_anomalies,
+                "anomalies_last_24h": anomalies_24h,
                 "uploads_last_7_days": [{"date": str(d.date), "count": d.count} for d in daily_uploads],
-                "anomalies_last_7_days": anomalies_count,
-                "risk_distribution": [{"level": r[0], "count": r[1]} for r in risk_dist]
+                "risk_distribution": [{"level": r[0], "count": r[1]} for r in risk_dist],
+                "top_risky_users": [{
+                    "username": u[0],
+                    "total_uploads": u[1],
+                    "avg_risk": round(float(u[2]), 1),
+                    "role": u[3]
+                } for u in top_risky_users],
+                "recent_activity": [{
+                    "filename": f.filename,
+                    "risk_level": f.risk_level,
+                    "is_blocked": f.is_blocked,
+                    "timestamp": f.upload_time.isoformat()
+                } for f in recent_uploads]
             }
         }), 200
     except Exception as e:
