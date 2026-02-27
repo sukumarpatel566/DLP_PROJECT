@@ -84,6 +84,13 @@ def login():
         if not user or not bcrypt.check_password_hash(user.password_hash, password):
             return jsonify({"success": False, "message": "Invalid email or password"}), 401
 
+        # Check if user is locked
+        if user.is_locked:
+            return jsonify({
+                "success": False,
+                "message": "Account temporarily locked due to repeated high-risk uploads."
+            }), 403
+
         # Identity MUST be a string for JWT
         access_token = create_access_token(
             identity=str(user.id),

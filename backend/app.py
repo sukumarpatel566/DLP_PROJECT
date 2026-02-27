@@ -15,6 +15,7 @@ from routes.general import general_bp
 from routes.auth import auth_bp
 from routes.files import files_bp
 from routes.admin import admin_bp
+from routes.users import users_bp
 
 
 def create_app(config_class=Config):
@@ -48,9 +49,11 @@ def create_app(config_class=Config):
     # ==============================
     # REGISTER BLUEPRINTS
     # ==============================
+    # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(files_bp, url_prefix='/api/files')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(general_bp, url_prefix='/api')
 
     # ==============================

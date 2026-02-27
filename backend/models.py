@@ -13,6 +13,7 @@ class User(db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='user')
+    is_locked = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Set password
@@ -43,6 +44,8 @@ class File(db.Model):
     is_blocked = db.Column(db.Boolean, default=False)
     detected_types = db.Column(db.Text, nullable=True)
     filesize = db.Column(db.Integer, nullable=True)
+    risk_score = db.Column(db.Integer, default=0)
+    risk_level = db.Column(db.String(20), default='Low')
 
     upload_time = db.Column(db.DateTime, default=datetime.utcnow)
 

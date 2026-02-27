@@ -16,11 +16,12 @@ class DLPEngine:
         }
 
     def scan_text(self, text):
-        detected = []
+        detected_counts = {}
         for label, pattern in self.patterns.items():
-            if re.search(pattern, text):
-                detected.append(label)
-        return detected
+            matches = re.findall(pattern, text)
+            if matches:
+                detected_counts[label] = len(matches)
+        return detected_counts
 
     def extract_text(self, file_stream, filename):
         text = ""
