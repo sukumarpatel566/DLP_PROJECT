@@ -55,6 +55,14 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(general_bp, url_prefix='/api')
+    
+    # ==============================
+    # SERVE STATIC UPLOADS
+    # ==============================
+    from flask import send_from_directory
+    @app.route('/uploads/<path:filename>')
+    def uploaded_file(filename):
+        return send_from_directory('uploads', filename)
 
     # ==============================
     # HEALTH CHECK ROUTE

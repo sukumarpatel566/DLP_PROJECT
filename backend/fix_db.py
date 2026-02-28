@@ -36,6 +36,12 @@ try:
         else:
             print("'is_locked' column exists.")
 
+        if 'profile_photo' not in columns:
+            print("Adding 'profile_photo' to 'users' table...")
+            cursor.execute("ALTER TABLE users ADD COLUMN profile_photo VARCHAR(255) NULL")
+        else:
+            print("'profile_photo' column exists.")
+
         print(f"Checking columns in 'files' table...")
         cursor.execute("DESCRIBE files")
         columns = [row[0] for row in cursor.fetchall()]
