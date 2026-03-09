@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, send_file
+from flask import Blueprint, jsonify, send_file, request
 from models import db, User, File, Log, AnomalyLog
 from utils.decorators import admin_required
 from sqlalchemy import func
